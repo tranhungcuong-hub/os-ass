@@ -1,3 +1,4 @@
+
 #include "mem.h"
 #include "stdlib.h"
 #include "string.h"
@@ -92,8 +93,6 @@ static int translate(
 			
 			*physical_addr = (trans_table->table[i].p_index << OFFSET_LEN) | offset;
 
-			// printf("1st: %05x | %05x = %05x\n", trans_table->table[i].p_index << OFFSET_LEN, offset, *physical_addr);
-
 			return 1;
 
 
@@ -111,9 +110,8 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc)
 	 * byte in the allocated memory region to [ret_mem].
 	 * */
 
-	uint32_t num_pages = ((size % PAGE_SIZE) == 0) ? size / PAGE_SIZE :
-		size / PAGE_SIZE + 1; // Number of pages we will use
-	int mem_avail = 0; // We could allocate new memory region or not?
+	uint32_t num_pages = ((size % PAGE_SIZE) == 0) ? size / PAGE_SIZE : size / PAGE_SIZE + 1; 	// Number of pages we will use
+	int mem_avail = 0; 																			// We could allocate new memory region or not?
 
 	/* First we must check if the amount of free memory in
 	 * virtual address space and physical address space is
@@ -149,8 +147,8 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc)
 		 * 	  isValid. */
 
 		
-		int frame_i = 0;
-		int pre_i = -1; //pre index
+		int frame_index = 0;
+		int pre_index = -1; //pre_index index
 		for(int i = 0; i < NUM_PAGES; i++)
 		{
 			//update status pages in physical address
@@ -158,11 +156,11 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc)
 			{
 			 	// add/update [proc], [index], and [next] field
 				_mem_stat[i].proc = proc->pid;
-				_mem_stat[i].index = frame_i;
-				if (pre_i != -1) { // not initial page, update last page
-					_mem_stat[pre_i].next = i;
+				_mem_stat[i].index = frame_index;
+				if (pre_index != -1) { // not initial page, update last page
+					_mem_stat[pre_index].next = i;
 				}
-				pre_i = i;
+				pre_index = i;
 
 				/*Add entries to segment table page tables of [proc]
 		 	  	to ensure accesses to allocated memory slot is
@@ -175,10 +173,13 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc)
 					page_table->size = 0; 
 				}
 
-				addr_t virtual_address = ret_mem + (frame_i << OFFSET_LEN);
+ 				
+				addr_t virtual_address = ret_mem + (frame_index << OFFSET_LEN);
 				addr_t segment_idx = get_first_lv(virtual_address);   //get the first layer index
 				addr_t page_idx = get_second_lv(virtual_address); //get the second layer index 
 				struct trans_table_t * trans_table = get_trans_table(segment_idx, page_table);
+				
+				
 				
 				// if there is not trans_table in seg -> create new trans_table
 				if (trans_table == NULL) 
@@ -195,13 +196,13 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc)
 				int idx = trans_table->size++;
 				trans_table->table[idx].v_index = page_idx;
 				trans_table->table[idx].p_index = i;
-				if(frame_i == (num_pages-1))
+				if(frame_index == (num_pages-1))
 				{
 					// the last element's next field = -1
 					_mem_stat[i].next = -1;
 					break;
 				}
-				frame_i++; //update page index
+				frame_index++; //update page index
 			}
 		}
 	}
@@ -276,7 +277,6 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 			}
 		}
 	}
-
 	pthread_mutex_unlock(&mem_lock);
 	return 0;
 }
@@ -328,3 +328,5 @@ void dump(void) {
 		}
 	}
 }
+
+
