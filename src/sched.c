@@ -50,9 +50,34 @@ struct pcb_t * get_mlq_proc(void) {
 	 * Remember to use lock to protect the queue.
 	 * */
 	pthread_mutex_lock(&queue_lock);
-	
+	uint32_t max_prio;
+	if(run_queue.size > 0) {
+		max_prio = run_queue.proc[0]->prio;
+		for (int i = 0; i < run_queue.size; i++) {
+			if(max_prio < run_queue.proc[i]->prio) 
+				max_prio = run_queue.proc[i]->prio;
+		}
+	}
+	for(int i = MAX_PRIO; i >= 0; i--){
+		if(mlq_ready_queue[i].size > 0){
+			proc = dequeue(&mlq_ready_queue[i]);
+			break;
+		}
+		else {
+			if(run_queue.size > 0) {
+				if(max_prio == i) {
+					while(run_queue.size > 0) {
+						struct pcb_t * temp = dequeue(&run_queue);
+						enqueue(&mlq_ready_queue[temp->prio], temp);
+					}
+					proc = dequeue(&mlq_ready_queue[i]);
+					break;
+				}
+			}
+		}
+	}
 	pthread_mutex_unlock(&queue_lock);
-	return proc;	
+	return proc;
 }
 
 void put_mlq_proc(struct pcb_t * proc) {
@@ -84,6 +109,20 @@ struct pcb_t * get_proc(void) {
 	/*TODO: get a process from [ready_queue].
 	 * Remember to use lock to protect the queue.
 	 * */
+	pthread_mutex_lock(&queue_lock);
+	if (empty(&ready_queue))
+	{
+		/*if ready queue is empty, get_proc takes processes from run_queue*/
+		for (int i = 0; i < run_queue.size; i++)
+		{
+			enqueue(&ready_queue, run_queue.proc[i]);
+		}
+		/*reset the sizes*/
+		ready_queue.size = run_queue.size;
+		run_queue.size = 0;
+	}
+	proc = dequeue(&ready_queue);
+	pthread_mutex_unlock(&queue_lock);
 	return proc;
 }
 
